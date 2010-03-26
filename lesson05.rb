@@ -1,6 +1,8 @@
+#!/usr/bin/ruby
 # This code was created by Jeff Molofee '99 
 # Conversion to Ruby by Manolo Padron Martinez (manolopm@cip.es)
-
+# Bug Fixes by Chris Lundquist (chrismlundquist@gmail.com)
+require "rubygems"
 require "opengl"
 require "glut"
 
@@ -53,16 +55,16 @@ DrawGLScene = Proc.new {
   GL.Color3f(  1.0, 0.0, 0.0)             # Set The Color To Red
   GL.Vertex3f( 0.0, 1.0, 0.0)             # Top
   GL.Color3f(  0.0, 1.0, 0.0)             # Set The Color To Green
-  GL.Vertex3f( 1.0,-1.0, 0.0)             # Bottom Right
+  GL.Vertex3f( -1.0,-1.0, 1.0)             # Bottom Right
   GL.Color3f(  0.0, 0.0, 1.0)             # Set The Color To Blue
-  GL.Vertex3f(-1.0,-1.0, 0.0)             # Bottom Left  
+  GL.Vertex3f(1.0,-1.0, 1.0)             # Bottom Left  
 
   # right face of pyramid
   GL.Color3f(  1.0, 0.0, 0.0)             # Red
   GL.Vertex3f( 0.0, 1.0, 0.0)             # Top of triangle (Right)
   GL.Color3f(  0.0, 0.0, 1.0)             # Blue
   GL.Vertex3f( 1.0,-1.0, 1.0)             # Left of triangle (Right)
-  GL.Color3f(  1.0, 0.0, 0.0)             # Green
+  GL.Color3f(  0.0, 1.0, 0.0)             # Green
   GL.Vertex3f( 1.0,-1.0,-1.0)             # Right of triangle (Right)
 
   # back face of pyramid
@@ -78,7 +80,7 @@ DrawGLScene = Proc.new {
   GL.Vertex3f( 0.0, 1.0, 0.0)             # Top of triangle (Left)
   GL.Color3f(  0.0, 0.0, 1.0)             # Blue
   GL.Vertex3f(-1.0,-1.0,-1.0)             # Left of triangle (Left)
-  GL.Color3f(  1.0, 0.0, 0.0)             # Green
+  GL.Color3f(  0.0, 1.0, 0.0)             # Green
   GL.Vertex3f(-1.0,-1.0, 1.0)             # Right of triangle (Left)
 
   GL.End()                                # Done drawing the pyramid
@@ -133,9 +135,9 @@ DrawGLScene = Proc.new {
   GL.Vertex3f( 1.0,-1.0,-1.0)             # Bottom Right Of The Quad (Right)
   GL.End();                               # done with the polygon
 
-  $rtri=$rtri+15.0                        # Increase the rotation variable for
+  $rtri += 0.05                        # Increase the rotation variable for
                                           # the Triangle
-  $rquad=$rquad-15.0                      # Decrease the rotation variable for 
+  $rquad -= 0.05                      # Decrease the rotation variable for 
                                           # the Quad
   # we need to swap the buffer to display our drawing.
   GLUT.SwapBuffers();
