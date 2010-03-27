@@ -150,7 +150,7 @@ draw_gl_scene = Proc.new {
 
 
 # The function called whenever a key is pressed.
-keyPressed = Proc.new {|key, x, y| 
+key_pressed = Proc.new {|key, x, y| 
 
   case key
   when 27
