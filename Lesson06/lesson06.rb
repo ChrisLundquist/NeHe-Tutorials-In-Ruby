@@ -36,32 +36,34 @@ def InitGL(width, height) # We call this right after our OpenGL window
 end
 
 def parse_bitmap(file_name)
-  f = File.open(file_name,"r")
+  f = File.open(file_name,"rb")
 
   # Read the file
   texture = f.read
   f.close
 
-  width = texture[0x12..0x15]
-  height = texture[0x16..0x19]
+  # For Formality
+  header = texture[0..53]
+  texture = texture[54..-1]
 
-  # Throw away the header
-  texture = texture[56..-1]
+  # Get each attribute as an unsigned int
+  width = header[18..21].unpack("I").first
+  height = header[22..25].unpack("I").first
+  color_depth = header[28..31].unpack("I").first
+  raise "Unsupported Bit Depth" unless color_depth == 24
+
+  # Since the image was stored upside down we need to flip it. 
+  # But if we flip it we have to resort it from BGR -> RGB
+  #texture = texture.reverse
 
   # Turn the string into an array
   texture = texture.unpack("C*")
 
-  # Since the image was stored upside down we need to flip it. But if we flip
-  # it we have to resort it RGB -> BGR
-  texture = texture.reverse
-
   i = 0
-  length = texture.length
 
-  while i < texture.length
-  # FIXME: This rotates BGR -> RBG which makes it 'correct'
-  # Something is very wrong
-    texture[i], texture[i + 1], texture[i + 2] = texture[i + 2], texture[i], texture[i + 1]
+  while i + 2 < texture.length
+    # This rotates BGR -> RBG which makes it 'correct'
+    texture[i], texture[i + 2] = texture[i + 2], texture[i]
     i += 3
   end
 
