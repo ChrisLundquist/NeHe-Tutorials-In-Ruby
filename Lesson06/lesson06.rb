@@ -5,6 +5,7 @@
 require "rubygems"
 require "opengl"
 require "glut"
+require "../bitmap"
 
 
 $xrot = 0.0                               # X Rotation ( NEW )
@@ -35,49 +36,13 @@ def InitGL(width, height) # We call this right after our OpenGL window
   GL.MatrixMode(GL::MODELVIEW)
 end
 
-def parse_bitmap(file_name)
-  f = File.open(file_name,"rb")
-
-  # Read the file
-  texture = f.read
-  f.close
-
-  # For Formality
-  header = texture[0..53]
-  texture = texture[54..-1]
-
-  # Get each attribute as an unsigned int
-  width = header[18..21].unpack("I").first
-  height = header[22..25].unpack("I").first
-  color_depth = header[28..31].unpack("I").first
-  raise "Unsupported Bit Depth" unless color_depth == 24
-
-  # Since the image was stored upside down we need to flip it. 
-  # But if we flip it we have to resort it from BGR -> RGB
-  #texture = texture.reverse
-
-  # Turn the string into an array
-  texture = texture.unpack("C*")
-
-  i = 0
-
-  while i + 2 < texture.length
-    # This rotates BGR -> RBG which makes it 'correct'
-    texture[i], texture[i + 2] = texture[i + 2], texture[i]
-    i += 3
-  end
-
-  # Turn it back into a string for memory effeciency
-  texture = texture.pack("C*")
-end
-
 
 def load_gl_textures
-data = parse_bitmap("Data/NeHe.bmp")
+bitmap = Bitmap.new("Data/NeHe.bmp")
 
 $texture = glGenTextures(1) # Create 1 Texture
 glBindTexture(GL_TEXTURE_2D, $texture[0]) # Bind The Texture 
-glTexImage2D(GL_TEXTURE_2D, 0, 4, 256, 256, 0, GL_RGB, GL_UNSIGNED_BYTE, data) # Build Texture Using Information In data
+glTexImage2D(GL_TEXTURE_2D, 0, 4, 256, 256, 0, GL_RGB, GL_UNSIGNED_BYTE, bitmap.data) # Build Texture Using Information In bitmap
 
 glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR)
 glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR)
