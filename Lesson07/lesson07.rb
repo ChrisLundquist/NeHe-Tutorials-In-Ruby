@@ -1,7 +1,6 @@
 #!/usr/bin/ruby
 # This code was created by Jeff Molofee '99 
-# Conversion to Ruby by Manolo Padron Martinez (manolopm@cip.es)
-# Bug Fixes by Chris Lundquist (chrismlundquist@gmail.com)
+# Conversion to Ruby by Chris Lundquist (ChrisMLundquist@gmail.com)
 require "rubygems"
 require "opengl"
 require "glut"
@@ -11,11 +10,10 @@ require "../bitmap"
 $xrot = 0.0                               # X Rotation 
 $yrot = 0.0                               # Y Rotation 
 $zrot = 0.0                               # Z Rotation 
-$light = nil
-$lp = nil
+$light = true
 $fp = nil
 
-$texture = Array.new(3)                # Storage For One Texture 
+$texture = Array.new(3)                # Storage For Three Textures
 
 $LightAmbient = [ 0.5, 0.5, 0.5, 1.0 ]
 $LightDiffuse = [ 1.0, 1.0, 1.0, 1.0 ]
@@ -152,10 +150,10 @@ key_pressed = Proc.new {|key, x, y|
     exit(0)
     when 'L'.sum,'l'.sum
         # Toggle the flag
-        $lp = !$lp
+        $light = !$light
 
         # Do what they wanted
-        if $lp
+        if $light
             glEnable(GL_LIGHTING)
         else
             glDisable(GL_LIGHTING)
