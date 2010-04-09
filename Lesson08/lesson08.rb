@@ -10,9 +10,8 @@ require "../bitmap"
 $xrot = 0.0                               # X Rotation 
 $yrot = 0.0                               # Y Rotation 
 $zrot = 0.0                               # Z Rotation 
+$blend = true
 $light = true
-$fp = nil
-
 $texture = Array.new(3)                # Storage For Three Textures
 
 $LightAmbient = [ 0.5, 0.5, 0.5, 1.0 ]
@@ -38,6 +37,8 @@ def InitGL(width, height) # We call this right after our OpenGL window
 	glLightfv(GL_LIGHT1, GL_DIFFUSE, $LightDiffuse)		# Setup The Diffuse Light
 	glLightfv(GL_LIGHT1, GL_POSITION,$LightPosition)	# Position The Light
 	glEnable(GL_LIGHT1)								# Enable Light One
+    glColor4f(1.0, 1.0, 1.0, 0.5)                   # Full Brightness 50% alpha
+    glBlendFunc(GL_SRC_ALPHA,GL_ONE)
 	return true                                     # Initialization Went OK
 end
 
@@ -157,6 +158,15 @@ key_pressed = Proc.new {|key, x, y|
             glEnable(GL_LIGHTING)
         else
             glDisable(GL_LIGHTING)
+        end
+    when 'B'.sum,'b'.sum
+        $blend = !$blend
+        if $blend
+            glEnable(GL_BLEND)
+            glDisable(GL_DEPTH_TEST)
+        else
+            glDisable(GL_BLEND)
+            glEnable(GL_DEPTH_TEST)
         end
     when 'F'.sum,'f'.sum
         # Increment the filter we are using
