@@ -71,21 +71,17 @@ private
     end
 
     def load_8bit
-#       @data = @data.unpack("C*")
-#       uncompressed_data = Array.new
-#    
-#       @data.each do |byte|
-#                r = byte & 0xE0
-#                g = byte & 0x18
-#                b = byte & 0x07
-#        uncompressed_data += [r,g,b]
-#        end
-#    
-#   
-#        # Turn it back into a string for memory effeciency
-#        @data = @data.pack("C*")
+       @data = @data.unpack("C*")
     
-        @data
+       # R 0123 4567 & 0xE0 = 012x xxxx
+       # G 0123 4567 & 0x18 = xxx3 4xxx
+       # B 0123 4567 & 0x07 = xxxx x567
+       @data.map! do |i|
+           [r = i & 0xE0, g = i & 0x18, b = i & 0x07]
+       end.flatten!
+    
+       # Turn it back into a string for memory effeciency
+       @data = @data.pack("C*")
     end
 
 
