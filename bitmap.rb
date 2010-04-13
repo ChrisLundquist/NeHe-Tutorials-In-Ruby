@@ -24,7 +24,7 @@ private
     def open_file(file_path)
         f = File.open(file_path,"rb")
 
-    # Read the file
+        # Read the file
         @data = f.read
         f.close
     end
@@ -38,52 +38,46 @@ private
         @color_depth = @data[0x1C..0x1D].unpack("S").first
         @image_size = @data[0x22..0x25].unpack("I").first
 
-
         # For Formality
         @header = @data[0..@header_size]
         @data = @data[@data_start..-1]
     end
 
     def parse_bitmap
-        case @color_depth 
-        when 24
-            load_24bit
-        when 8
-            load_8bit
-        else
-            raise "Unsupported Bit Depth of: #{@color_depth}" 
-        end
-    end
-
-    def load_24bit
         # Turn the string into an array
         @data = @data.unpack("C*")
 
-        i = 0
-        while i + 2 < @data.length
-        # This rotates BGR -> RGB which makes it 'correct'
-            @data[i], @data[i + 2] = @data[i + 2], @data[i]
-            i += 3
+        case @color_depth 
+        when 24
+            load_24bit()
+        when 8
+            load_8bit()
+        else
+            raise "Unsupported Bit Depth of: #{@color_depth}" 
         end
 
         # Turn it back into a string for memory effeciency
         @data = @data.pack("C*")
     end
 
-    def load_8bit
-       @data = @data.unpack("C*")
-    
-       # R 0123 4567 & 0xE0 = 012x xxxx
-       # G 0123 4567 & 0x18 = xxx3 4xxx
-       # B 0123 4567 & 0x07 = xxxx x567
-       @data.map! do |i|
-           [r = i & 0xE0, g = i & 0x18, b = i & 0x07]
-       end.flatten!
-    
-       # Turn it back into a string for memory effeciency
-       @data = @data.pack("C*")
+    def load_24bit
+        i = 0
+        while i + 2 < @data.length
+            # This rotates BGR -> RGB which makes it 'correct'
+            @data[i], @data[i + 2] = @data[i + 2], @data[i]
+            i += 3
+        end
     end
 
-
+    def load_8bit
+       expand_byte = lambda { |value,mask,shift,max| (((value & mask) >> shift).to_f / max * 255).round }
+       # R 0123 4567 & 0xE0 = 012x xxxx
+       # G 0123 4567 & 0x1C = xxx3 45xx
+       # B 0123 4567 & 0x03 = xxxx xx67
+       @data.map! do |i|
+           [r = expand_byte.call(i,0xE0,5,7), g = expand_byte.call(i,0x1C,2,7), b = expand_byte.call(i, 0x03, 0, 3)]
+       #    [r = (i & 0x07), g = (i & 0x38), b = (i & 0xC0)]
+       end.flatten!
+    end
 end
 
