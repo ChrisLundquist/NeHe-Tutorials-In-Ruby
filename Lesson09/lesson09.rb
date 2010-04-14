@@ -117,7 +117,7 @@ draw_gl_scene = Proc.new {
 			star.b = rand(255)
             end
         end
-	return true										# Everything Went OK
+	true										# Everything Went OK
 }
 
 
