@@ -44,7 +44,7 @@ end
 
 def load_gl_textures
 
-        bitmap = Bitmap.new("Data/glass.bmp")
+        bitmap = Bitmap.new("Data/Glass.bmp")
         $texture = glGenTextures(3) # Create 3 Texture
         # Create Nearest Filtered Texture
         glBindTexture(GL_TEXTURE_2D, $texture[0])
