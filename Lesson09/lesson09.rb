@@ -11,8 +11,8 @@ Struct.new(:star, :r,:g,:b,:dist,:angle)
 
 
 $texture = Array.new(1)                # Storage For Three Textures
-$zoom = 0.0
-$tilt = 0.0
+$zoom = -15.0
+$tilt = 90.0
 $spin = 0.0
 $stars = Array.new
 
@@ -79,14 +79,14 @@ draw_gl_scene = Proc.new {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)	# Clear The Screen And The Depth Buffer
 	glBindTexture(GL_TEXTURE_2D, $texture[0])			# Select Our Texture
 
-	$stars.each_with_index do |star,i|						# Loop Through All The Stars
+	$stars.each_with_index do |star,i|					# Loop Through All The Stars
 		glLoadIdentity()								# Reset The View Before We Draw Each Star
 		glTranslatef(0.0, 0.0, $zoom)					# Zoom Into The Screen (Using The Value In 'zoom')
 		glRotatef($tilt,1.0,0.0,0.0)					# Tilt The View (Using The Value In 'tilt')
-		glRotatef(star.angle,0.0,1.0,0.0)		# Rotate To The Current Stars Angle
-		glTranslatef(star.dist,0.0,0.0)		# Move Forward On The X Plane
-		glRotatef(-star.angle,0.0,1.0,0.0)	# Cancel The Current Stars Angle
-		glRotatef(-$tilt,1.0,0.0,0.0)				# Cancel The Screen Tilt
+		glRotatef(star.angle,0.0,1.0,0.0)		        # Rotate To The Current Stars Angle
+		glTranslatef(star.dist,0.0,0.0)		            # Move Forward On The X Plane
+		glRotatef(-star.angle,0.0,1.0,0.0)	            # Cancel The Current Stars Angle
+		glRotatef(-$tilt,1.0,0.0,0.0)	    			# Cancel The Screen Tilt
 		
 		if ($twinkle != 0)
 			glColor4ub($stars[-i].r, $stars[-i].g,$stars[-i].b,255)
@@ -115,9 +115,10 @@ draw_gl_scene = Proc.new {
 			star.r = rand(255)
 			star.g = rand(255)
 			star.b = rand(255)
-            end
         end
-	return true										# Everything Went OK
+    end
+    GLUT.SwapBuffers()
+	true										# Everything Went OK
 }
 
 
