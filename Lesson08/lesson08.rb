@@ -25,54 +25,54 @@ $filter	 = 0 # Which Filter To Use
 
 def InitGL(width, height) # We call this right after our OpenGL window 
   return false unless load_gl_textures()        # If Texture Didn't Load Return FALSE 
-	glEnable(GL_TEXTURE_2D)							# Enable Texture Mapping
-	glShadeModel(GL_SMOOTH)							# Enable Smooth Shading
-	glClearColor(0.0, 0.0, 0.0, 0.5)				# Black Background
-	glClearDepth(1.0)									# Depth Buer Setup
-	glEnable(GL_DEPTH_TEST)							# Enables Depth Testing
-	glDepthFunc(GL_LEQUAL)								# The Type Of Depth Testing To Do
-	glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST)	# Really Nice Perspective Calculations
+  glEnable(GL_TEXTURE_2D)							# Enable Texture Mapping
+  glShadeModel(GL_SMOOTH)							# Enable Smooth Shading
+  glClearColor(0.0, 0.0, 0.0, 0.5)				# Black Background
+  glClearDepth(1.0)									# Depth Buer Setup
+  glEnable(GL_DEPTH_TEST)							# Enables Depth Testing
+  glDepthFunc(GL_LEQUAL)								# The Type Of Depth Testing To Do
+  glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST)	# Really Nice Perspective Calculations
 
-	glLightfv(GL_LIGHT1, GL_AMBIENT, $LightAmbient)		# Setup The Ambient Light
-	glLightfv(GL_LIGHT1, GL_DIFFUSE, $LightDiffuse)		# Setup The Diffuse Light
-	glLightfv(GL_LIGHT1, GL_POSITION,$LightPosition)	# Position The Light
-	glEnable(GL_LIGHT1)								# Enable Light One
-    glColor4f(1.0, 1.0, 1.0, 0.5)                   # Full Brightness 50% alpha
-    glBlendFunc(GL_SRC_ALPHA,GL_ONE)
-	return true                                     # Initialization Went OK
+  glLightfv(GL_LIGHT1, GL_AMBIENT, $LightAmbient)		# Setup The Ambient Light
+  glLightfv(GL_LIGHT1, GL_DIFFUSE, $LightDiffuse)		# Setup The Diffuse Light
+  glLightfv(GL_LIGHT1, GL_POSITION,$LightPosition)	# Position The Light
+  glEnable(GL_LIGHT1)								# Enable Light One
+  glColor4f(1.0, 1.0, 1.0, 0.5)                   # Full Brightness 50% alpha
+  glBlendFunc(GL_SRC_ALPHA,GL_ONE)
+  return true                                     # Initialization Went OK
 end
 
 def load_gl_textures
 
-        bitmap = Bitmap.new("Data/Glass.bmp")
-        $texture = glGenTextures(3) # Create 3 Texture
-        # Create Nearest Filtered Texture
-        glBindTexture(GL_TEXTURE_2D, $texture[0])
-        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST)
-        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST)
-        glTexImage2D(GL_TEXTURE_2D, 0, 3, bitmap.size_x, bitmap.size_y, 0, GL_RGB, GL_UNSIGNED_BYTE, bitmap.data)
+  bitmap = Bitmap.new("Data/Glass.bmp")
+  $texture = glGenTextures(3) # Create 3 Texture
+  # Create Nearest Filtered Texture
+  glBindTexture(GL_TEXTURE_2D, $texture[0])
+  glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST)
+  glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST)
+  glTexImage2D(GL_TEXTURE_2D, 0, 3, bitmap.size_x, bitmap.size_y, 0, GL_RGB, GL_UNSIGNED_BYTE, bitmap.data)
 
-        # Create Linear Filtered Texture
-        glBindTexture(GL_TEXTURE_2D, $texture[1])
-        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR)
-        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR)
-        glTexImage2D(GL_TEXTURE_2D, 0, 3, bitmap.size_x, bitmap.size_y, 0, GL_RGB, GL_UNSIGNED_BYTE, bitmap.data)
+  # Create Linear Filtered Texture
+  glBindTexture(GL_TEXTURE_2D, $texture[1])
+  glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR)
+  glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR)
+  glTexImage2D(GL_TEXTURE_2D, 0, 3, bitmap.size_x, bitmap.size_y, 0, GL_RGB, GL_UNSIGNED_BYTE, bitmap.data)
 
-        # Create MipMapped Texture
-        glBindTexture(GL_TEXTURE_2D, $texture[2])
-        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR)
-        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR_MIPMAP_NEAREST)
-        gluBuild2DMipmaps(GL_TEXTURE_2D, 3, bitmap.size_x, bitmap.size_y, GL_RGB, GL_UNSIGNED_BYTE, bitmap.data)
+  # Create MipMapped Texture
+  glBindTexture(GL_TEXTURE_2D, $texture[2])
+  glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR)
+  glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR_MIPMAP_NEAREST)
+  gluBuild2DMipmaps(GL_TEXTURE_2D, 3, bitmap.size_x, bitmap.size_y, GL_RGB, GL_UNSIGNED_BYTE, bitmap.data)
 end
 
 # The function called when our window is resized (which shouldn't happen, 
 # because we're fullscreen) 
 resize_gl_scene = Proc.new {|width, height|
- # Prevent A Divide By Zero If The Window Is Too Small
-   height = 1 if height == 0
-  
+  # Prevent A Divide By Zero If The Window Is Too Small
+  height = 1 if height == 0
+
   GL.Viewport(0,0,width,height) # Reset The Current Viewport And
-                                # Perspective Transformation
+  # Perspective Transformation
   GL.MatrixMode(GL::PROJECTION)
   GL.LoadIdentity()
   GLU.Perspective(45.0,Float(width)/Float(height),0.1,100.0)
@@ -93,42 +93,42 @@ draw_gl_scene = Proc.new {
   GL.BindTexture(GL_TEXTURE_2D, $texture[$filter])        # Select Our Texture
 
   GL.Begin(GL_QUADS);
-    # Front Face
-	glNormal3f( 0.0, 0.0, 1.0)
-    GL.TexCoord2f(0.0, 0.0); GL.Vertex3f(-1.0, -1.0,  1.0) # Bottom Left Of The Texture and Quad
-    GL.TexCoord2f(1.0, 0.0); GL.Vertex3f( 1.0, -1.0,  1.0) # Bottom Right Of The Texture and Quad
-    GL.TexCoord2f(1.0, 1.0); GL.Vertex3f( 1.0,  1.0,  1.0) # Top Right Of The Texture and Quad
-    GL.TexCoord2f(0.0, 1.0); GL.Vertex3f(-1.0,  1.0,  1.0) # Top Left Of The Texture and Quad
-    # Back Face
-	glNormal3f( 0.0, 0.0, -1.0)
-    GL.TexCoord2f(1.0, 0.0); GL.Vertex3f(-1.0, -1.0, -1.0) # Bottom Right Of The Texture and Quad
-    GL.TexCoord2f(1.0, 1.0); GL.Vertex3f(-1.0,  1.0, -1.0) # Top Right Of The Texture and Quad
-    GL.TexCoord2f(0.0, 1.0); GL.Vertex3f( 1.0,  1.0, -1.0) # Top Left Of The Texture and Quad
-    GL.TexCoord2f(0.0, 0.0); GL.Vertex3f( 1.0, -1.0, -1.0) # Bottom Left Of The Texture and Quad
-    # Top Face
-	glNormal3f( 0.0, 1.0, 0.0)
-    GL.TexCoord2f(0.0, 1.0); GL.Vertex3f(-1.0,  1.0, -1.0) # Top Left Of The Texture and Quad
-    GL.TexCoord2f(0.0, 0.0); GL.Vertex3f(-1.0,  1.0,  1.0) # Bottom Left Of The Texture and Quad
-    GL.TexCoord2f(1.0, 0.0); GL.Vertex3f( 1.0,  1.0,  1.0) # Bottom Right Of The Texture and Quad
-    GL.TexCoord2f(1.0, 1.0); GL.Vertex3f( 1.0,  1.0, -1.0) # Top Right Of The Texture and Quad
-    # Bottom Face
-	glNormal3f( 0.0, -1.0, 0.0)
-    GL.TexCoord2f(1.0, 1.0); GL.Vertex3f(-1.0, -1.0, -1.0) # Top Right Of The Texture and Quad
-    GL.TexCoord2f(0.0, 1.0); GL.Vertex3f( 1.0, -1.0, -1.0) # Top Left Of The Texture and Quad
-    GL.TexCoord2f(0.0, 0.0); GL.Vertex3f( 1.0, -1.0,  1.0) # Bottom Left Of The Texture and Quad
-    GL.TexCoord2f(1.0, 0.0); GL.Vertex3f(-1.0, -1.0,  1.0) # Bottom Right Of The Texture and Quad
-    # Right face
-	glNormal3f( 1.0, 0.0, 0.0)
-    GL.TexCoord2f(1.0, 0.0); GL.Vertex3f( 1.0, -1.0, -1.0) # Bottom Right Of The Texture and Quad
-    GL.TexCoord2f(1.0, 1.0); GL.Vertex3f( 1.0,  1.0, -1.0) # Top Right Of The Texture and Quad
-    GL.TexCoord2f(0.0, 1.0); GL.Vertex3f( 1.0,  1.0,  1.0) # Top Left Of The Texture and Quad
-    GL.TexCoord2f(0.0, 0.0); GL.Vertex3f( 1.0, -1.0,  1.0) # Bottom Left Of The Texture and Quad
-    # Left Face
-	glNormal3f( -1.0, 0.0, 0.0)
-    GL.TexCoord2f(0.0, 0.0); GL.Vertex3f(-1.0, -1.0, -1.0) # Bottom Left Of The Texture and Quad
-    GL.TexCoord2f(1.0, 0.0); GL.Vertex3f(-1.0, -1.0,  1.0) # Bottom Right Of The Texture and Quad
-    GL.TexCoord2f(1.0, 1.0); GL.Vertex3f(-1.0,  1.0,  1.0) # Top Right Of The Texture and Quad
-    GL.TexCoord2f(0.0, 1.0); GL.Vertex3f(-1.0,  1.0, -1.0) # Top Left Of The Texture and Quad
+  # Front Face
+  glNormal3f( 0.0, 0.0, 1.0)
+  GL.TexCoord2f(0.0, 0.0); GL.Vertex3f(-1.0, -1.0,  1.0) # Bottom Left Of The Texture and Quad
+  GL.TexCoord2f(1.0, 0.0); GL.Vertex3f( 1.0, -1.0,  1.0) # Bottom Right Of The Texture and Quad
+  GL.TexCoord2f(1.0, 1.0); GL.Vertex3f( 1.0,  1.0,  1.0) # Top Right Of The Texture and Quad
+  GL.TexCoord2f(0.0, 1.0); GL.Vertex3f(-1.0,  1.0,  1.0) # Top Left Of The Texture and Quad
+  # Back Face
+  glNormal3f( 0.0, 0.0, -1.0)
+  GL.TexCoord2f(1.0, 0.0); GL.Vertex3f(-1.0, -1.0, -1.0) # Bottom Right Of The Texture and Quad
+  GL.TexCoord2f(1.0, 1.0); GL.Vertex3f(-1.0,  1.0, -1.0) # Top Right Of The Texture and Quad
+  GL.TexCoord2f(0.0, 1.0); GL.Vertex3f( 1.0,  1.0, -1.0) # Top Left Of The Texture and Quad
+  GL.TexCoord2f(0.0, 0.0); GL.Vertex3f( 1.0, -1.0, -1.0) # Bottom Left Of The Texture and Quad
+  # Top Face
+  glNormal3f( 0.0, 1.0, 0.0)
+  GL.TexCoord2f(0.0, 1.0); GL.Vertex3f(-1.0,  1.0, -1.0) # Top Left Of The Texture and Quad
+  GL.TexCoord2f(0.0, 0.0); GL.Vertex3f(-1.0,  1.0,  1.0) # Bottom Left Of The Texture and Quad
+  GL.TexCoord2f(1.0, 0.0); GL.Vertex3f( 1.0,  1.0,  1.0) # Bottom Right Of The Texture and Quad
+  GL.TexCoord2f(1.0, 1.0); GL.Vertex3f( 1.0,  1.0, -1.0) # Top Right Of The Texture and Quad
+  # Bottom Face
+  glNormal3f( 0.0, -1.0, 0.0)
+  GL.TexCoord2f(1.0, 1.0); GL.Vertex3f(-1.0, -1.0, -1.0) # Top Right Of The Texture and Quad
+  GL.TexCoord2f(0.0, 1.0); GL.Vertex3f( 1.0, -1.0, -1.0) # Top Left Of The Texture and Quad
+  GL.TexCoord2f(0.0, 0.0); GL.Vertex3f( 1.0, -1.0,  1.0) # Bottom Left Of The Texture and Quad
+  GL.TexCoord2f(1.0, 0.0); GL.Vertex3f(-1.0, -1.0,  1.0) # Bottom Right Of The Texture and Quad
+  # Right face
+  glNormal3f( 1.0, 0.0, 0.0)
+  GL.TexCoord2f(1.0, 0.0); GL.Vertex3f( 1.0, -1.0, -1.0) # Bottom Right Of The Texture and Quad
+  GL.TexCoord2f(1.0, 1.0); GL.Vertex3f( 1.0,  1.0, -1.0) # Top Right Of The Texture and Quad
+  GL.TexCoord2f(0.0, 1.0); GL.Vertex3f( 1.0,  1.0,  1.0) # Top Left Of The Texture and Quad
+  GL.TexCoord2f(0.0, 0.0); GL.Vertex3f( 1.0, -1.0,  1.0) # Bottom Left Of The Texture and Quad
+  # Left Face
+  glNormal3f( -1.0, 0.0, 0.0)
+  GL.TexCoord2f(0.0, 0.0); GL.Vertex3f(-1.0, -1.0, -1.0) # Bottom Left Of The Texture and Quad
+  GL.TexCoord2f(1.0, 0.0); GL.Vertex3f(-1.0, -1.0,  1.0) # Bottom Right Of The Texture and Quad
+  GL.TexCoord2f(1.0, 1.0); GL.Vertex3f(-1.0,  1.0,  1.0) # Top Right Of The Texture and Quad
+  GL.TexCoord2f(0.0, 1.0); GL.Vertex3f(-1.0,  1.0, -1.0) # Top Left Of The Texture and Quad
   GL.End()
 
   # We need to swap the buffer to display our drawing.
@@ -149,30 +149,30 @@ key_pressed = Proc.new {|key, x, y|
     GLUT.DestroyWindow($window)
     # exit the program...normal termination.
     exit(0)
-    when 'L'.sum,'l'.sum
-        # Toggle the flag
-        $light = !$light
+  when 'L'.sum,'l'.sum
+    # Toggle the flag
+    $light = !$light
 
-        # Do what they wanted
-        if $light
-            glEnable(GL_LIGHTING)
-        else
-            glDisable(GL_LIGHTING)
-        end
-    when 'B'.sum,'b'.sum
-        $blend = !$blend
-        if $blend
-            glEnable(GL_BLEND)
-            glDisable(GL_DEPTH_TEST)
-        else
-            glDisable(GL_BLEND)
-            glEnable(GL_DEPTH_TEST)
-        end
-    when 'F'.sum,'f'.sum
-        # Increment the filter we are using
-        $filter += 1
-        # Keep te filter in the domain of texture length
-        $filter = $filter % $texture.length
+    # Do what they wanted
+    if $light
+      glEnable(GL_LIGHTING)
+    else
+      glDisable(GL_LIGHTING)
+    end
+  when 'B'.sum,'b'.sum
+    $blend = !$blend
+    if $blend
+      glEnable(GL_BLEND)
+      glDisable(GL_DEPTH_TEST)
+    else
+      glDisable(GL_BLEND)
+      glEnable(GL_DEPTH_TEST)
+    end
+  when 'F'.sum,'f'.sum
+    # Increment the filter we are using
+    $filter += 1
+    # Keep te filter in the domain of texture length
+    $filter = $filter % $texture.length
   else
     # Do Nothing
   end
