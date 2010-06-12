@@ -153,7 +153,7 @@ draw_gl_scene = Proc.new {
 key_pressed = Proc.new {|key, x, y| 
 
   case key
-  when 27
+  when "\e",27 # Escape
     # If escape is pressed, kill everything and shut down our window.
     GLUT.DestroyWindow($window)
     # exit the program...normal termination.

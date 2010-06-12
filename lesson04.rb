@@ -92,7 +92,7 @@ draw_gl_scene = Proc.new {
 key_pressed = Proc.new {|key, x, y| 
   # If escape is pressed, kill everything. 
   case key
-  when 27
+  when "\e",27 # Escape key depending on ruby version
     GLUT.DestroyWindow($window) # Shut Down Our Window 
     exit(0) # Exit the program...normal termination.
   else
