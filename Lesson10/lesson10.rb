@@ -127,6 +127,7 @@ def init_gl(width, height)
 end
 
 key_pressed = Proc.new do |key, x, y|
+  puts key.inspect
     case key
     when "\e",27 # Escape key depending on ruby version
         # If escape is pressed, kill everything and shut down our window.
@@ -157,6 +158,10 @@ key_pressed = Proc.new do |key, x, y|
         $filter += 1
         # Keep te filter in the domain of texture length
         $filter = $filter % $texture.length
+    when 'W','w'
+    when 'A','a'
+    when 'S','s'
+    when 'D','d'
     else
         # Do Nothing
     end
@@ -177,15 +182,15 @@ draw_gl_scene = Proc.new do # Here's Where We Do All The Drawing
     glBindTexture(GL_TEXTURE_2D, $textures[$filter])
 
     # Process Each Triangle
+    glBegin(GL_TRIANGLES)
+    glNormal3f( 0.0, 0.0, 1.0)
     $sector.each do |triangle|
-      glBegin(GL_TRIANGLES)
-      glNormal3f( 0.0, 0.0, 1.0)
       triangle.vertex.each do |vertex|
         glTexCoord2f(vertex.u, vertex.v)
         glVertex3f(vertex.x, vertex.y, vertex.z)
       end
-      glEnd()
     end
+    glEnd()
     GLUT.SwapBuffers()
     true                                        # Everything Went OK
 end
@@ -209,7 +214,6 @@ GLUT.InitWindowPosition(0,0)
 
 # Open a window
 $window = GLUT.CreateWindow("Jeff Molofee's GL Code Tutorial ... NeHe '99")
-sleep 5
 
 # Register the function to do all our OpenGL drawing.
 GLUT.DisplayFunc(draw_gl_scene)
