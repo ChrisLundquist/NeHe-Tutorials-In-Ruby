@@ -25,8 +25,12 @@ class Vertex
     def initialize(*params)
         @x, @y, @z, @u, @v = params
         [@x, @y, @z, @u, @v].each do |var|
-            raise "value not coercable to float" unless var.respond_to?(:to_f) or var.respond_to(:to_float)
+            raise "value not coercable to float" unless var and (var.respond_to?(:to_f) or var.respond_to(:to_float))
         end
+    end
+    
+    def inspect
+        "(#@x, #@y, #@z) <#@u, #@v>"
     end
 end
 
@@ -41,26 +45,22 @@ class Triangle
 end
 
 $sector = Array.new  # Our Model Goes Here:
-
 def SetupWorld
-    puts "setting up world"
     vertexes = Array.new # buffer for incomplete triangles
 
     file = File.open("Data/World.txt");               # File To Load World Data From
 
     file.each do |line|
-        next if line.start_with?("//","\n","NUMPOLLIES")  # Reject the lines that don't contain point data
-        puts line.inspect
+        next if line.start_with?("//","\r","\n","NUMPOLLIES")  # Reject the lines that don't contain point data
+        
 
         # Parse our line from text into floats and assign them
         x, y, z, u, v = line.split.map(&:to_f)
-        puts "making Vertex"
         # Append this Vertex to our container
         vertexes.push(Vertex.new(x,y,z,u,v))
 
         # If we have three vertexes we can make a Triangle
         if vertexes.length == 3
-            puts "making triangle"
             # Add our Triangle to this sector
             $sector.push(Triangle.new(vertexes))
 
@@ -68,14 +68,12 @@ def SetupWorld
             vertexes.clear
         end
     end
-    puts "Done Setting up world"
     # Remember to close our File
     file.close
     true
 end
 
 def load_gl_textures
-    puts "loading textures"
     bitmap = Bitmap.new("Data/Mud.bmp")
     $textures = glGenTextures(3) # Create 3 Texture
 
@@ -111,8 +109,7 @@ resize_gl_scene = Proc.new do | width,height |
     true
 end
 
-def init_gl(width,height)
-    puts "init_gl"
+def init_gl(width, height)
     load_gl_textures or raise("Unable to load Textures") # Jump To Texture Loading Routine
 
     glEnable(GL_TEXTURE_2D)                            # Enable Texture Mapping
@@ -164,11 +161,7 @@ key_pressed = Proc.new do |key, x, y|
         # Do Nothing
     end
 end
-$counter = 0
 draw_gl_scene = Proc.new do # Here's Where We Do All The Drawing
-    puts "drawing"
-    $counter += 1
-    exit if $counter > 10 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT) # Clear The Screen And The Depth Buffer
     glLoadIdentity()                                   # Reset The View
 
@@ -185,7 +178,6 @@ draw_gl_scene = Proc.new do # Here's Where We Do All The Drawing
 
     # Process Each Triangle
     $sector.each do |triangle|
-      puts triangle.inspect
       glBegin(GL_TRIANGLES)
       glNormal3f( 0.0, 0.0, 1.0)
       triangle.vertex.each do |vertex|
@@ -194,6 +186,7 @@ draw_gl_scene = Proc.new do # Here's Where We Do All The Drawing
       end
       glEnd()
     end
+    GLUT.SwapBuffers()
     true                                        # Everything Went OK
 end
 #Initialize GLUT state - glut will take any command line arguments that pertain
@@ -216,12 +209,13 @@ GLUT.InitWindowPosition(0,0)
 
 # Open a window
 $window = GLUT.CreateWindow("Jeff Molofee's GL Code Tutorial ... NeHe '99")
+sleep 5
 
 # Register the function to do all our OpenGL drawing.
 GLUT.DisplayFunc(draw_gl_scene)
 
 # Go fullscreen. This is as soon as possible.
-GLUT.FullScreen()
+#GLUT.FullScreen()
 
 # Even if there are no events, redraw our gl scene.
 GLUT.IdleFunc(draw_gl_scene)
