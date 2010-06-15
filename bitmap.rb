@@ -5,22 +5,27 @@
 # This class loads bitmap files facilitating their use
 # with OpenGL
 class Bitmap
-HEADER_SIZE = 14
-EXTENDED_HEADER_SIZE = 0x0E..0x11
-DATA_START = 0x0A..0x0D
-WIDTH = 0x12..0x15
-HEIGHT = 0x16..0x19
-COLOR_DEPTH = 0x1C..0x1D
-IMAGE_SIZE = 0x22..0x25
-NUMBER_OF_COLORS_IN_PALETTE = 0x2E..0x31
-attr_accessor :width,:height,:color_depth,:data,:header
-alias size_x width
-alias size_y height
+    HEADER_SIZE = 14
+    EXTENDED_HEADER_SIZE = 0x0E..0x11
+    DATA_START = 0x0A..0x0D
+    WIDTH = 0x12..0x15
+    HEIGHT = 0x16..0x19
+    COLOR_DEPTH = 0x1C..0x1D
+    IMAGE_SIZE = 0x22..0x25
+    NUMBER_OF_COLORS_IN_PALETTE = 0x2E..0x31
+
+    attr_accessor :width,:height,:color_depth,:data,:header
+
+    alias size_x width
+    alias size_y height
+
     def initialize(file)
         case file
         when String
-           open_file(file) 
+            open_file(file) 
         when File
+            file.rewind
+            @data = file.read
         else
             raise "Unable to create bitmap from #{file.class}"
         end
@@ -28,7 +33,7 @@ alias size_y height
         parse_bitmap()
     end
 
-private
+    private
     def open_file(file_path)
         f = File.open(file_path,"rb")
 
@@ -101,18 +106,18 @@ private
         end
     end
 
-    def expand_byte( value,mask,shift,max)
-       (((value & mask) >> shift).to_f / max * 255).round
+    def expand_byte(value, mask, shift, max)
+        (((value & mask) >> shift).to_f / max * 255).round
     end
 
     def load_8bit
-       # R 0123 4567 & 0xE0 = 012x xxxx
-       # G 0123 4567 & 0x1C = xxx3 45xx
-       # B 0123 4567 & 0x03 = xxxx xx67
-       @data.map! do |i|
-           [r = expand_byte(i,0xE0,5,7), g = expand_byte(i,0x1C,2,7), b = expand_byte(i, 0x03, 0, 3)]
-       #    [r = (i & 0x07), g = (i & 0x38), b = (i & 0xC0)]
-       end.flatten!
+        # R 0123 4567 & 0xE0 = 012x xxxx
+        # G 0123 4567 & 0x1C = xxx3 45xx
+        # B 0123 4567 & 0x03 = xxxx xx67
+        @data.map! do |i|
+            [r = expand_byte(i,0xE0,5,7), g = expand_byte(i,0x1C,2,7), b = expand_byte(i, 0x03, 0, 3)]
+            #    [r = (i & 0x07), g = (i & 0x38), b = (i & 0xC0)]
+        end.flatten!
     end
 end
 

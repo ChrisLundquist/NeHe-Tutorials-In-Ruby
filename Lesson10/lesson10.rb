@@ -1,644 +1,259 @@
-$blend;				# Blending ON/OFF
+#!/usr/bin/ruby
+require 'rubygems'
+require 'opengl'
+require '../bitmap'
+
+$blend = nil             # Blending ON/OFF
 
 PIOVER180 = 0.0174532925
-$heading;
-$xpos;
-$zpos;
+$heading = nil
+$xpos = 0.0
+$zpos = 0.0
 
-$yrot;				# Y Rotation
+$yrot = 0.0              # Y Rotation
+
 $walkbias = 0;
-$walkbiasangle = 0;
-$lookupdown = 0.0;
-$z = 0.0;				# Depth Into The Screen
-
-$filter;				# Which Filter To Use
-$texture[3];			# Storage For 3 Textures
+$walkbiasangle = 0
+$lookupdown = 0.0
+$z = 0.0               # Depth Into The Screen
+$filter = 0                # Which Filter To Use
+$textures = nil            # Storage For 3 Textures
 
 class Vertex
     attr_accessor :x, :y, :z, :u, :v
+
+    def initialize(*params)
+        @x, @y, @z, @u, @v = params
+        [@x, @y, @z, @u, @v].each do |var|
+            raise "value not coercable to float" unless var.respond_to?(:to_f) or var.respond_to(:to_float)
+        end
+    end
 end
 
 class Triangle
     attr_accessor :vertex
 
-    def initialize(params = {})
-        @vertex ||= Array.new(3)
+    def initialize(*params)
+        @vertex = params.flatten
+        # Make sure our Triangle is made of 3 Vertexes
+        raise "Malformed Triangle #{@vertex.inspect}" unless @vertex.map(&:class) == [Vertex, Vertex, Vertex]
     end
 end
 
-class Sector
-    attr_accessor :triangles
+$sector = Array.new  # Our Model Goes Here:
+
+def SetupWorld
+    vertexes = Array.new # buffer for incomplete triangles
+
+    file = File.open("Data/World.txt");               # File To Load World Data From
+
+    file.each do |line|
+        next if line.start_with?("//","\n","NUMPOLLIES")  # Reject the lines that don't contain point data
+
+        # Parse our line from text into floats and assign them
+        x, y, z, u, v = line.split.map(&:to_f)
+        # Append this Vertex to our container
+        vertexes.push(Vertex.new(x,y,z,u,v))
+
+        # If we have three vertexes we can make a Triangle
+        if vertexes.length == 3
+            # Add our Triangle to this sector
+            $sector.push(Triangle.new(vertexes))
+
+            # Reset our buffer for the next Triangle
+            vertexes.clear
+        end
+    end
+    # Remember to close our File
+    file.close
+    true
 end
 
-$sector = Sector.new				# Our Model Goes Here:
+def init_gl(width, height) # We call this right after our OpenGL window 
+    load_gl_textures() or raise("Unable to load textures")   # If Texture Didn't Load Return FALSE 
+    glEnable(GL_TEXTURE_2D)                         # Enable Texture Mapping
+    glShadeModel(GL_SMOOTH)                         # Enable Smooth Shading
+    glClearColor(0.0, 0.0, 0.0, 0.5)                # Black Background
+    glClearDepth(1.0)                                   # Depth Buer Setup
+    glEnable(GL_DEPTH_TEST)                         # Enables Depth Testing
+    glDepthFunc(GL_LEQUAL)                              # The Type Of Depth Testing To Do
+    glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST)   # Really Nice Perspective Calculations
 
-void readstr(FILE *f,char *string)
-{
-    do
-    {
-        fgets(string, 255, f);
-    } while ((string[0] == '/') || (string[0] == '\n'));
-    return;
-}
+    glColor4f(1.0, 1.0, 1.0, 0.5)                   # Full Brightness 50% alpha
+    glBlendFunc(GL_SRC_ALPHA,GL_ONE)
 
-void SetupWorld()
-{
-    float x, y, z, u, v;
-    int numtriangles;
-    FILE *filein;
-    char oneline[255];
-    filein = fopen("data/world.txt", "rt");				# File To Load World Data From
+    glEnable(GL_BLEND)
 
-    readstr(filein,oneline);
-    sscanf(oneline, "NUMPOLLIES %d\n", &numtriangles);
+    50.times do 
+        star = Star.new
+        star.angle = 0.0
+        star.dist = rand(50) * 5.0
+        star.r = rand(255)
+        star.g = rand(255)
+        star.b = rand(255)
 
-    sector1.triangle = new TRIANGLE[numtriangles];
-    sector1.numtriangles = numtriangles;
-    for (int loop = 0; loop < numtriangles; loop++)
-        {
-            for (int vert = 0; vert < 3; vert++)
-                {
-                    readstr(filein,oneline);
-                    sscanf(oneline, "%f %f %f %f %f", &x, &y, &z, &u, &v);
-                    sector1.triangle[loop].vertex[vert].x = x;
-                    sector1.triangle[loop].vertex[vert].y = y;
-                    sector1.triangle[loop].vertex[vert].z = z;
-                    sector1.triangle[loop].vertex[vert].u = u;
-                    sector1.triangle[loop].vertex[vert].v = v;
-                }
-        }
-        fclose(filein);
-        return;
-}
+        $stars.push(star)
+    end
+end
 
-int LoadGLTextures()                                    # Load Bitmaps And Convert To Textures
-{
-    int Status=FALSE;                               # Status Indicator
+def load_gl_textures
+    bitmap = Bitmap.new("Data/Mud.bmp")
+    $textures = glGenTextures(3) # Create 3 Texture
 
-    AUX_RGBImageRec *TextureImage[1];               # Create Storage Space For The Texture
+    GL.BindTexture(GL_TEXTURE_2D, $textures[0])
+    GL.TexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST)
+    GL.TexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST)
+    GL.TexImage2D(GL_TEXTURE_2D, 0, 3, bitmap.size_x, bitmap.size_y, 0, GL_RGB, GL_UNSIGNED_BYTE, bitmap.data)
 
-    memset(TextureImage,0,sizeof(void *)*1);        # Set The Pointer To NULL
+    # Create Linear Filtered Texture
+    GL.BindTexture(GL_TEXTURE_2D, $textures[1])
+    GL.TexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR)
+    GL.TexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR)
+    GL.TexImage2D(GL_TEXTURE_2D, 0, 3, bitmap.size_x, bitmap.size_y, 0, GL_RGB, GL_UNSIGNED_BYTE, bitmap.data)
 
-    # Load The Bitmap, Check For Errors, If Bitmap's Not Found Quit
-    if (TextureImage[0]=LoadBMP("Data/Mud.bmp"))
-        {
-            Status=TRUE;                            # Set The Status To TRUE
+    GL.BindTexture(GL_TEXTURE_2D, $textures[2])
+    GL.TexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR)
+    GL.TexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR_MIPMAP_NEAREST)
+    GL.TexImage2D(GL_TEXTURE_2D, 0, 3, bitmap.size_x, bitmap.size_y, 0, GL_RGB, GL_UNSIGNED_BYTE, bitmap.data)
 
-            glGenTextures(3, &texture[0]);          # Create Three Textures
+    true
+end
 
-            # Create Nearest Filtered Texture
-            glBindTexture(GL_TEXTURE_2D, texture[0]);
-            glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
-            glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST);
-            glTexImage2D(GL_TEXTURE_2D, 0, 3, TextureImage[0]->sizeX, TextureImage[0]->sizeY, 0, GL_RGB, GL_UNSIGNED_BYTE, TextureImage[0]->data);
+# because we're fullscreen) 
+def resize_gl_scene(width, height)
+    # Prevent A Divide By Zero If The Window Is Too Small
+    height = 1 if height == 0
 
-            # Create Linear Filtered Texture
-            glBindTexture(GL_TEXTURE_2D, texture[1]);
-            glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
-            glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
-            glTexImage2D(GL_TEXTURE_2D, 0, 3, TextureImage[0]->sizeX, TextureImage[0]->sizeY, 0, GL_RGB, GL_UNSIGNED_BYTE, TextureImage[0]->data);
+    GL.Viewport(0,0,width,height) # Reset The Current Viewport And
+    # Perspective Transformation
+    GL.MatrixMode(GL::PROJECTION)
+    GL.LoadIdentity()
+    GLU.Perspective(45.0,Float(width)/Float(height),0.1,100.0)
+    GL.MatrixMode(GL::MODELVIEW)
+    GL.LoadIdentity()
+end
 
-            # Create MipMapped Texture
-            glBindTexture(GL_TEXTURE_2D, texture[2]);
-            glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
-            glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR_MIPMAP_NEAREST);
-            gluBuild2DMipmaps(GL_TEXTURE_2D, 3, TextureImage[0]->sizeX, TextureImage[0]->sizeY, GL_RGB, GL_UNSIGNED_BYTE, TextureImage[0]->data);
-        }
-        if (TextureImage[0])                            # If Texture Exists
-            {
-                if (TextureImage[0]->data)              # If Texture Image Exists
-                    {
-                        free(TextureImage[0]->data);    # Free The Texture Image Memory
-                    }
+def InitGL(width,height)
+    return false  unless load_gl_textures # Jump To Texture Loading Routine
 
-                    free(TextureImage[0]);                  # Free The Image Structure
-            }
 
-            return Status;                                  # Return The Status
-}
+    glEnable(GL_TEXTURE_2D)                            # Enable Texture Mapping
+    glBlendFunc(GL_SRC_ALPHA,GL_ONE)                   # Set The Blending Function For Translucency
+    glClearColor(0.0, 0.0, 0.0, 0.0)                   # This Will Clear The Background Color To Black
+    glClearDepth(1.0)                                  # Enables Clearing Of The Depth Buffer
+    glDepthFunc(GL_LESS)                               # The Type Of Depth Test To Do
+    glEnable(GL_DEPTH_TEST)                            # Enables Depth Testing
+    glShadeModel(GL_SMOOTH)                            # Enables Smooth Color Shading
+    glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST)  # Really Nice Perspective Calculations
 
-GLvoid ReSizeGLScene(GLsizei width, GLsizei height)		# Resize And Initialize The GL Window
-{
-    if (height==0)										# Prevent A Divide By Zero By
-        {
-            height=1;										# Making Height Equal One
-        }
+    SetupWorld()
 
-        glViewport(0,0,width,height);						# Reset The Current Viewport
+    return true                                       # Initialization Went OK
+end
 
-        glMatrixMode(GL_PROJECTION);						# Select The Projection Matrix
-        glLoadIdentity();									# Reset The Projection Matrix
+def key_pressed(key, x, y)
+    case key
+    when "\e",27 # Escape key depending on ruby version
+        # If escape is pressed, kill everything and shut down our window.
+        GLUT.DestroyWindow($window)
+        # exit the program...normal termination.
+        exit(0)
+    when 'L'.sum,'l'.sum
+        # Toggle the flag
+        $light = !$light
 
-        # Calculate The Aspect Ratio Of The Window
-        gluPerspective(45.0f,(GLfloat)width/(GLfloat)height,0.1f,100.0f);
-
-        glMatrixMode(GL_MODELVIEW);							# Select The Modelview Matrix
-        glLoadIdentity();									# Reset The Modelview Matrix
-}
-
-int InitGL(GLvoid)										# All Setup For OpenGL Goes Here
-{
-    if (!LoadGLTextures())								# Jump To Texture Loading Routine
-        {
-            return FALSE;									# If Texture Didn't Load Return FALSE
-        }
-
-        glEnable(GL_TEXTURE_2D);							# Enable Texture Mapping
-        glBlendFunc(GL_SRC_ALPHA,GL_ONE);					# Set The Blending Function For Translucency
-        glClearColor(0.0f, 0.0f, 0.0f, 0.0f);				# This Will Clear The Background Color To Black
-        glClearDepth(1.0);									# Enables Clearing Of The Depth Buffer
-        glDepthFunc(GL_LESS);								# The Type Of Depth Test To Do
-        glEnable(GL_DEPTH_TEST);							# Enables Depth Testing
-        glShadeModel(GL_SMOOTH);							# Enables Smooth Color Shading
-        glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);	# Really Nice Perspective Calculations
-
-        SetupWorld();
-
-        return TRUE;										# Initialization Went OK
-}
-
-int DrawGLScene(GLvoid)									# Here's Where We Do All The Drawing
-{
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);	# Clear The Screen And The Depth Buffer
-    glLoadIdentity();									# Reset The View
-
-    GLfloat x_m, y_m, z_m, u_m, v_m;
-    GLfloat xtrans = -xpos;
-    GLfloat ztrans = -zpos;
-    GLfloat ytrans = -walkbias-0.25f;
-    GLfloat sceneroty = 360.0f - yrot;
-
-    int numtriangles;
-
-    glRotatef(lookupdown,1.0f,0,0);
-    glRotatef(sceneroty,0,1.0f,0);
-
-    glTranslatef(xtrans, ytrans, ztrans);
-    glBindTexture(GL_TEXTURE_2D, texture[filter]);
-
-    numtriangles = sector1.numtriangles;
-
-    # Process Each Triangle
-    for (int loop_m = 0; loop_m < numtriangles; loop_m++)
-        {
-            glBegin(GL_TRIANGLES);
-            glNormal3f( 0.0f, 0.0f, 1.0f);
-            x_m = sector1.triangle[loop_m].vertex[0].x;
-            y_m = sector1.triangle[loop_m].vertex[0].y;
-            z_m = sector1.triangle[loop_m].vertex[0].z;
-            u_m = sector1.triangle[loop_m].vertex[0].u;
-            v_m = sector1.triangle[loop_m].vertex[0].v;
-            glTexCoord2f(u_m,v_m); glVertex3f(x_m,y_m,z_m);
-
-            x_m = sector1.triangle[loop_m].vertex[1].x;
-            y_m = sector1.triangle[loop_m].vertex[1].y;
-            z_m = sector1.triangle[loop_m].vertex[1].z;
-            u_m = sector1.triangle[loop_m].vertex[1].u;
-            v_m = sector1.triangle[loop_m].vertex[1].v;
-            glTexCoord2f(u_m,v_m); glVertex3f(x_m,y_m,z_m);
-
-            x_m = sector1.triangle[loop_m].vertex[2].x;
-            y_m = sector1.triangle[loop_m].vertex[2].y;
-            z_m = sector1.triangle[loop_m].vertex[2].z;
-            u_m = sector1.triangle[loop_m].vertex[2].u;
-            v_m = sector1.triangle[loop_m].vertex[2].v;
-            glTexCoord2f(u_m,v_m); glVertex3f(x_m,y_m,z_m);
-            glEnd();
-        }
-        return TRUE;										# Everything Went OK
-}
-
-GLvoid KillGLWindow(GLvoid)								# Properly Kill The Window
-{
-    if (fullscreen)										# Are We In Fullscreen Mode?
-        {
-            ChangeDisplaySettings(NULL,0);					# If So Switch Back To The Desktop
-            ShowCursor(TRUE);								# Show Mouse Pointer
-        }
-
-        if (hRC)											# Do We Have A Rendering Context?
-            {
-                if (!wglMakeCurrent(NULL,NULL))					# Are We Able To Release The DC And RC Contexts?
-                    {
-                        MessageBox(NULL,"Release Of DC And RC Failed.","SHUTDOWN ERROR",MB_OK | MB_ICONINFORMATION);
-                    }
-
-                    if (!wglDeleteContext(hRC))						# Are We Able To Delete The RC?
-                        {
-                            MessageBox(NULL,"Release Rendering Context Failed.","SHUTDOWN ERROR",MB_OK | MB_ICONINFORMATION);
-                        }
-                        hRC=NULL;										# Set RC To NULL
-            }
-
-            if (hDC && !ReleaseDC(hWnd,hDC))					# Are We Able To Release The DC
-                {
-                    MessageBox(NULL,"Release Device Context Failed.","SHUTDOWN ERROR",MB_OK | MB_ICONINFORMATION);
-                    hDC=NULL;										# Set DC To NULL
-                }
-
-                if (hWnd && !DestroyWindow(hWnd))					# Are We Able To Destroy The Window?
-                    {
-                        MessageBox(NULL,"Could Not Release hWnd.","SHUTDOWN ERROR",MB_OK | MB_ICONINFORMATION);
-                        hWnd=NULL;										# Set hWnd To NULL
-                    }
-
-                    if (!UnregisterClass("OpenGL",hInstance))			# Are We Able To Unregister Class
-                        {
-                            MessageBox(NULL,"Could Not Unregister Class.","SHUTDOWN ERROR",MB_OK | MB_ICONINFORMATION);
-                            hInstance=NULL;									# Set hInstance To NULL
-                        }
-}
-
-/*	This Code Creates Our OpenGL Window.  Parameters Are:					*
-    *	title			- Title To Appear At The Top Of The Window				*
-    *	width			- Width Of The GL Window Or Fullscreen Mode				*
-    *	height			- Height Of The GL Window Or Fullscreen Mode			*
-    *	bits			- Number Of Bits To Use For Color (8/16/24/32)			*
-    *	fullscreenflag	- Use Fullscreen Mode (TRUE) Or Windowed Mode (FALSE)	*/
-
-    BOOL CreateGLWindow(char* title, int width, int height, int bits, bool fullscreenflag)
-{
-    GLuint		PixelFormat;			# Holds The Results After Searching For A Match
-    WNDCLASS	wc;						# Windows Class Structure
-    DWORD		dwExStyle;				# Window Extended Style
-    DWORD		dwStyle;				# Window Style
-    RECT		WindowRect;				# Grabs Rectangle Upper Left / Lower Right Values
-    WindowRect.left=(long)0;			# Set Left Value To 0
-    WindowRect.right=(long)width;		# Set Right Value To Requested Width
-    WindowRect.top=(long)0;				# Set Top Value To 0
-    WindowRect.bottom=(long)height;		# Set Bottom Value To Requested Height
-
-    fullscreen=fullscreenflag;			# Set The Global Fullscreen Flag
-
-    hInstance			= GetModuleHandle(NULL);				# Grab An Instance For Our Window
-    wc.style			= CS_HREDRAW | CS_VREDRAW | CS_OWNDC;	# Redraw On Size, And Own DC For Window.
-    wc.lpfnWndProc		= (WNDPROC) WndProc;					# WndProc Handles Messages
-    wc.cbClsExtra		= 0;									# No Extra Window Data
-    wc.cbWndExtra		= 0;									# No Extra Window Data
-    wc.hInstance		= hInstance;							# Set The Instance
-    wc.hIcon			= LoadIcon(NULL, IDI_WINLOGO);			# Load The Default Icon
-    wc.hCursor			= LoadCursor(NULL, IDC_ARROW);			# Load The Arrow Pointer
-    wc.hbrBackground	= NULL;									# No Background Required For GL
-    wc.lpszMenuName		= NULL;									# We Don't Want A Menu
-    wc.lpszClassName	= "OpenGL";								# Set The Class Name
-
-    if (!RegisterClass(&wc))									# Attempt To Register The Window Class
-        {
-            MessageBox(NULL,"Failed To Register The Window Class.","ERROR",MB_OK|MB_ICONEXCLAMATION);
-            return FALSE;											# Return FALSE
-        }
-
-        if (fullscreen)												# Attempt Fullscreen Mode?
-            {
-                DEVMODE dmScreenSettings;								# Device Mode
-                memset(&dmScreenSettings,0,sizeof(dmScreenSettings));	# Makes Sure Memory's Cleared
-                dmScreenSettings.dmSize=sizeof(dmScreenSettings);		# Size Of The Devmode Structure
-                dmScreenSettings.dmPelsWidth	= width;				# Selected Screen Width
-                dmScreenSettings.dmPelsHeight	= height;				# Selected Screen Height
-                dmScreenSettings.dmBitsPerPel	= bits;					# Selected Bits Per Pixel
-                dmScreenSettings.dmFields=DM_BITSPERPEL|DM_PELSWIDTH|DM_PELSHEIGHT;
-
-                # Try To Set Selected Mode And Get Results.  NOTE: CDS_FULLSCREEN Gets Rid Of Start Bar.
-                if (ChangeDisplaySettings(&dmScreenSettings,CDS_FULLSCREEN)!=DISP_CHANGE_SUCCESSFUL)
-                    {
-                        # If The Mode Fails, Offer Two Options.  Quit Or Use Windowed Mode.
-                        if (MessageBox(NULL,"The Requested Fullscreen Mode Is Not Supported By\nYour Video Card. Use Windowed Mode Instead?","NeHe GL",MB_YESNO|MB_ICONEXCLAMATION)==IDYES)
-                            {
-                                fullscreen=FALSE;		# Windowed Mode Selected.  Fullscreen = FALSE
-                            }
-                        else
-                            {
-                                # Pop Up A Message Box Letting User Know The Program Is Closing.
-                                MessageBox(NULL,"Program Will Now Close.","ERROR",MB_OK|MB_ICONSTOP);
-                                return FALSE;									# Return FALSE
-                            }
-                    }
-            }
-
-            if (fullscreen)												# Are We Still In Fullscreen Mode?
-                {
-                    dwExStyle=WS_EX_APPWINDOW;								# Window Extended Style
-                    dwStyle=WS_POPUP;										# Windows Style
-                    ShowCursor(FALSE);										# Hide Mouse Pointer
-                }
-            else
-                {
-                    dwExStyle=WS_EX_APPWINDOW | WS_EX_WINDOWEDGE;			# Window Extended Style
-                    dwStyle=WS_OVERLAPPEDWINDOW;							# Windows Style
-                }
-
-                AdjustWindowRectEx(&WindowRect, dwStyle, FALSE, dwExStyle);		# Adjust Window To True Requested Size
-
-                # Create The Window
-                if (!(hWnd=CreateWindowEx(	dwExStyle,							# Extended Style For The Window
-                                          "OpenGL",							# Class Name
-                                          title,								# Window Title
-                                          dwStyle |							# Defined Window Style
-                                          WS_CLIPSIBLINGS |					# Required Window Style
-                                          WS_CLIPCHILDREN,					# Required Window Style
-                                          0, 0,								# Window Position
-                                          WindowRect.right-WindowRect.left,	# Calculate Window Width
-                                          WindowRect.bottom-WindowRect.top,	# Calculate Window Height
-                                          NULL,								# No Parent Window
-                                          NULL,								# No Menu
-                                          hInstance,							# Instance
-                                          NULL)))								# Dont Pass Anything To WM_CREATE
-                    {
-                        KillGLWindow();								# Reset The Display
-                        MessageBox(NULL,"Window Creation Error.","ERROR",MB_OK|MB_ICONEXCLAMATION);
-                        return FALSE;								# Return FALSE
-                    }
-
-                    static	PIXELFORMATDESCRIPTOR pfd=				# pfd Tells Windows How We Want Things To Be
-                        {
-                        sizeof(PIXELFORMATDESCRIPTOR),				# Size Of This Pixel Format Descriptor
-                        1,											# Version Number
-                        PFD_DRAW_TO_WINDOW |						# Format Must Support Window
-                        PFD_SUPPORT_OPENGL |						# Format Must Support OpenGL
-                        PFD_DOUBLEBUFFER,							# Must Support Double Buffering
-                        PFD_TYPE_RGBA,								# Request An RGBA Format
-                        bits,										# Select Our Color Depth
-                        0, 0, 0, 0, 0, 0,							# Color Bits Ignored
-                        0,											# No Alpha Buffer
-                        0,											# Shift Bit Ignored
-                        0,											# No Accumulation Buffer
-                        0, 0, 0, 0,									# Accumulation Bits Ignored
-                        16,											# 16Bit Z-Buffer (Depth Buffer)  
-                        0,											# No Stencil Buffer
-                        0,											# No Auxiliary Buffer
-                        PFD_MAIN_PLANE,								# Main Drawing Layer
-                        0,											# Reserved
-                        0, 0, 0										# Layer Masks Ignored
-                    };
-
-                    if (!(hDC=GetDC(hWnd)))							# Did We Get A Device Context?
-                        {
-                            KillGLWindow();								# Reset The Display
-                            MessageBox(NULL,"Can't Create A GL Device Context.","ERROR",MB_OK|MB_ICONEXCLAMATION);
-                            return FALSE;								# Return FALSE
-                        }
-
-                        if (!(PixelFormat=ChoosePixelFormat(hDC,&pfd)))	# Did Windows Find A Matching Pixel Format?
-                            {
-                                KillGLWindow();								# Reset The Display
-                                MessageBox(NULL,"Can't Find A Suitable PixelFormat.","ERROR",MB_OK|MB_ICONEXCLAMATION);
-                                return FALSE;								# Return FALSE
-                            }
-
-                            if(!SetPixelFormat(hDC,PixelFormat,&pfd))		# Are We Able To Set The Pixel Format?
-                                {
-                                    KillGLWindow();								# Reset The Display
-                                    MessageBox(NULL,"Can't Set The PixelFormat.","ERROR",MB_OK|MB_ICONEXCLAMATION);
-                                    return FALSE;								# Return FALSE
-                                }
-
-                                if (!(hRC=wglCreateContext(hDC)))				# Are We Able To Get A Rendering Context?
-                                    {
-                                        KillGLWindow();								# Reset The Display
-                                        MessageBox(NULL,"Can't Create A GL Rendering Context.","ERROR",MB_OK|MB_ICONEXCLAMATION);
-                                        return FALSE;								# Return FALSE
-                                    }
-
-                                    if(!wglMakeCurrent(hDC,hRC))					# Try To Activate The Rendering Context
-                                        {
-                                            KillGLWindow();								# Reset The Display
-                                            MessageBox(NULL,"Can't Activate The GL Rendering Context.","ERROR",MB_OK|MB_ICONEXCLAMATION);
-                                            return FALSE;								# Return FALSE
-                                        }
-
-                                        ShowWindow(hWnd,SW_SHOW);						# Show The Window
-                                        SetForegroundWindow(hWnd);						# Slightly Higher Priority
-                                        SetFocus(hWnd);									# Sets Keyboard Focus To The Window
-                                        ReSizeGLScene(width, height);					# Set Up Our Perspective GL Screen
-
-                                        if (!InitGL())									# Initialize Our Newly Created GL Window
-                                            {
-                                                KillGLWindow();								# Reset The Display
-                                                MessageBox(NULL,"Initialization Failed.","ERROR",MB_OK|MB_ICONEXCLAMATION);
-                                                return FALSE;								# Return FALSE
-                                            }
-
-                                            return TRUE;									# Success
-}
-
-LRESULT CALLBACK WndProc(	HWND	hWnd,			# Handle For This Window
-                         UINT	uMsg,			# Message For This Window
-                         WPARAM	wParam,			# Additional Message Information
-                         LPARAM	lParam)			# Additional Message Information
-{
-    switch (uMsg)									# Check For Windows Messages
-    {
-        case WM_ACTIVATE:							# Watch For Window Activate Message
-            {
-        if (!HIWORD(wParam))					# Check Minimization State
-            {
-                active=TRUE;						# Program Is Active
-            }
+        # Do what they wanted
+        if $light
+            glEnable(GL_LIGHTING)
         else
-            {
-                active=FALSE;						# Program Is No Longer Active
-            }
+            glDisable(GL_LIGHTING)
+        end
+    when 'B'.sum,'b'.sum
+        $blend = !$blend
+        if $blend
+            glEnable(GL_BLEND)
+            glDisable(GL_DEPTH_TEST)
+        else
+            glDisable(GL_BLEND)
+            glEnable(GL_DEPTH_TEST)
+        end
+    when 'F'.sum,'f'.sum
+        # Increment the filter we are using
+        $filter += 1
+        # Keep te filter in the domain of texture length
+        $filter = $filter % $texture.length
+    else
+        # Do Nothing
+    end
+end
 
-            return 0;								# Return To The Message Loop
-    }
 
-    case WM_SYSCOMMAND:							# Intercept System Commands
-        {
-        switch (wParam)							# Check System Calls
-        {
-            case SC_SCREENSAVE:					# Screensaver Trying To Start?
-                case SC_MONITORPOWER:				# Monitor Trying To Enter Powersave?
-                    return 0;							# Prevent From Happening
-        }
-        break;									# Exit
-    }
+def draw_gl_scene # Here's Where We Do All The Drawing
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT) # Clear The Screen And The Depth Buffer
+    glLoadIdentity()                                   # Reset The View
 
-    case WM_CLOSE:								# Did We Receive A Close Message?
-        {
-        PostQuitMessage(0);						# Send A Quit Message
-        return 0;								# Jump Back
-    }
+    xtrans = -$xpos
+    ztrans = -$zpos
+    ytrans = -$walkbias-0.25
+    sceneroty = 360.0 - $yrot
 
-    case WM_KEYDOWN:							# Is A Key Being Held Down?
-        {
-        keys[wParam] = TRUE;					# If So, Mark It As TRUE
-        return 0;								# Jump Back
-    }
+    glRotatef($lookupdown,1.0,0,0)
+    glRotatef($sceneroty,0,1.0,0)
 
-    case WM_KEYUP:								# Has A Key Been Released?
-        {
-        keys[wParam] = FALSE;					# If So, Mark It As FALSE
-        return 0;								# Jump Back
-    }
+    glTranslatef(xtrans, ytrans, ztrans)
+    glBindTexture(GL_TEXTURE_2D, $textures[$filter])
 
-    case WM_SIZE:								# Resize The OpenGL Window
-        {
-        ReSizeGLScene(LOWORD(lParam),HIWORD(lParam));  # LoWord=Width, HiWord=Height
-        return 0;								# Jump Back
-    }
-    }
+    glBegin(GL_TRIANGLES)
+    glNormal3f( 0.0, 0.0, 1.0)
+    # Process Each Triangle
+    $sector.each do |triangle|
+        triangle.vertex.each do |vertex|
+            glTexCoord2f(vertex.u, vertex.v)
+            glVertex3f(vertex.x, vertex.y, vertex.z)
+        end
+    end
+    glEnd()
+    return true                                        # Everything Went OK
+end
+#Initialize GLUT state - glut will take any command line arguments that pertain
+# to it or X Windows - look at its documentation at
+# http://reality.sgi.com/mjk/spec3/spec3.html
+GLUT.Init
 
-    # Pass All Unhandled Messages To DefWindowProc
-    return DefWindowProc(hWnd,uMsg,wParam,lParam);
-}
+#Select type of Display mode:
+# Double buffer 
+# RGBA color
+# Alpha components supported 
+# Depth buffer
+GLUT.InitDisplayMode(GLUT::RGBA|GLUT::DOUBLE|GLUT::ALPHA|GLUT::DEPTH)
 
-int WINAPI WinMain(	HINSTANCE	hInstance,			# Instance
-                   HINSTANCE	hPrevInstance,		# Previous Instance
-                   LPSTR		lpCmdLine,			# Command Line Parameters
-                   int			nCmdShow)			# Window Show State
-{
-    MSG		msg;									# Windows Message Structure
-    BOOL	done=FALSE;								# Bool Variable To Exit Loop
+# get a 640x480 window
+GLUT.InitWindowSize(640,480)
 
-    # Ask The User Which Screen Mode They Prefer
-    if (MessageBox(NULL,"Would You Like To Run In Fullscreen Mode?", "Start FullScreen?",MB_YESNO|MB_ICONQUESTION)==IDNO)
-        {
-            fullscreen=FALSE;							# Windowed Mode
-        }
+# the window starts at the upper left corner of the screen
+GLUT.InitWindowPosition(0,0)
 
-        # Create Our OpenGL Window
-        if (!CreateGLWindow("Lionel Brits & NeHe's 3D World Tutorial",640,480,16,fullscreen))
-            {
-                return 0;									# Quit If Window Was Not Created
-            }
+# Open a window
+$window = GLUT.CreateWindow("Jeff Molofee's GL Code Tutorial ... NeHe '99")
 
-            while(!done)									# Loop That Runs While done=FALSE
-                {
-                    if (PeekMessage(&msg,NULL,0,0,PM_REMOVE))	# Is There A Message Waiting?
-                        {
-                            if (msg.message==WM_QUIT)				# Have We Received A Quit Message?
-                                {
-                                    done=TRUE;							# If So done=TRUE
-                                }
-                            else									# If Not, Deal With Window Messages
-                                {
-                                    TranslateMessage(&msg);				# Translate The Message
-                                    DispatchMessage(&msg);				# Dispatch The Message
-                                }
-                        }
-                            else										# If There Are No Messages
-                                {
-                                    # Draw The Scene.  Watch For ESC Key And Quit Messages From DrawGLScene()
-                                    if ((active && !DrawGLScene()) || keys[VK_ESCAPE])	# Active?  Was There A Quit Received?
-                                        {
-                                            done=TRUE;							# ESC or DrawGLScene Signalled A Quit
-                                        }
-                                    else									# Not Time To Quit, Update Screen
-                                        {
-                                            SwapBuffers(hDC);					# Swap Buffers (Double Buffering)
-                                            if (keys['B'] && !bp)
-                                                {
-                                                    bp=TRUE;
-                                                    blend=!blend;
-                                                    if (!blend)
-                                                        {
-                                                            glDisable(GL_BLEND);
-                                                            glEnable(GL_DEPTH_TEST);
-                                                        }
-                                                    else
-                                                        {
-                                                            glEnable(GL_BLEND);
-                                                            glDisable(GL_DEPTH_TEST);
-                                                        }
-                                                }
-                                                if (!keys['B'])
-                                                    {
-                                                        bp=FALSE;
-                                                    }
+# Register the function to do all our OpenGL drawing.
+GLUT.DisplayFunc(lambda{draw_gl_scene})
 
-                                                    if (keys['F'] && !fp)
-                                                        {
-                                                            fp=TRUE;
-                                                            filter+=1;
-                                                            if (filter>2)
-                                                                {
-                                                                    filter=0;
-                                                                }
-                                                        }
-                                                        if (!keys['F'])
-                                                            {
-                                                                fp=FALSE;
-                                                            }
+# Go fullscreen. This is as soon as possible.
+GLUT.FullScreen()
 
-                                                            if (keys[VK_PRIOR])
-                                                                {
-                                                                    z-=0.02f;
-                                                                }
+# Even if there are no events, redraw our gl scene.
+GLUT.IdleFunc(lambda{draw_gl_scene})
 
-                                                                if (keys[VK_NEXT])
-                                                                    {
-                                                                        z+=0.02f;
-                                                                    }
+# Register the function called when our window is resized.
+GLUT.ReshapeFunc(lambda{ |x,y|resize_gl_scene(x,y)})
 
-                                                                    if (keys[VK_UP])
-                                                                        {
+# Register the function called when the keyboard is pressed.
+GLUT.KeyboardFunc(lambda{ |key,x,y| key_pressed(key,x,y)})
 
-                                                                            xpos -= (float)sin(heading*piover180) * 0.05f;
-                                                                            zpos -= (float)cos(heading*piover180) * 0.05f;
-                                                                            if (walkbiasangle >= 359.0f)
-                                                                                {
-                                                                                    walkbiasangle = 0.0f;
-                                                                                }
-                                                                            else
-                                                                                {
-                                                                                    walkbiasangle+= 10;
-                                                                                }
-                                                                                walkbias = (float)sin(walkbiasangle * piover180)/20.0f;
-                                                                        }
+# Initialize our window.
+InitGL(640, 480)
 
-                                                                        if (keys[VK_DOWN])
-                                                                            {
-                                                                                xpos += (float)sin(heading*piover180) * 0.05f;
-                                                                                zpos += (float)cos(heading*piover180) * 0.05f;
-                                                                                if (walkbiasangle <= 1.0f)
-                                                                                    {
-                                                                                        walkbiasangle = 359.0f;
-                                                                                    }
-                                                                                else
-                                                                                    {
-                                                                                        walkbiasangle-= 10;
-                                                                                    }
-                                                                                    walkbias = (float)sin(walkbiasangle * piover180)/20.0f;
-                                                                            }
+# Start Event Processing Engine
+GLUT.MainLoop()
 
-                                                                            if (keys[VK_RIGHT])
-                                                                                {
-                                                                                    heading -= 1.0f;
-                                                                                    yrot = heading;
-                                                                                }
-
-                                                                                if (keys[VK_LEFT])
-                                                                                    {
-                                                                                        heading += 1.0f;	
-                                                                                        yrot = heading;
-                                                                                    }
-
-                                                                                    if (keys[VK_PRIOR])
-                                                                                        {
-                                                                                            lookupdown-= 1.0f;
-                                                                                        }
-
-                                                                                        if (keys[VK_NEXT])
-                                                                                            {
-                                                                                                lookupdown+= 1.0f;
-                                                                                            }
-
-                                                                                            if (keys[VK_F1])						# Is F1 Being Pressed?
-                                                                                                {
-                                                                                                    keys[VK_F1]=FALSE;					# If So Make Key FALSE
-                                                                                                    KillGLWindow();						# Kill Our Current Window
-                                                                                                    fullscreen=!fullscreen;				# Toggle Fullscreen / Windowed Mode
-                                                                                                    # Recreate Our OpenGL Window
-                                                                                                    if (!CreateGLWindow("Lionel Brits & NeHe's 3D World Tutorial",640,480,16,fullscreen))
-                                                                                                        {
-                                                                                                            return 0;						# Quit If Window Was Not Created
-                                                                                                        }
-                                                                                                }
-                                        }
-                                }
-                }
-
-                # Shutdown
-                KillGLWindow();										# Kill The Window
-                return (msg.wParam);								# Exit The Program
-}
