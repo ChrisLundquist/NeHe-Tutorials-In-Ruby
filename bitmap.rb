@@ -14,12 +14,14 @@ class Bitmap
     IMAGE_SIZE = 0x22..0x25
     NUMBER_OF_COLORS_IN_PALETTE = 0x2E..0x31
 
-    attr_accessor :width,:height,:color_depth,:data,:header
+    attr_reader :width,:height,:color_depth,:data,:header, :file_name
+
 
     alias size_x width
     alias size_y height
 
     def initialize(file)
+        @file_name = file
         case file
         when String
             open_file(file) 
@@ -31,6 +33,10 @@ class Bitmap
         end
         parse_header()
         parse_bitmap()
+    end
+
+    def inspect
+      "#@file_name #{@width}x#{@height} #@color_depth bit color"
     end
 
     private
